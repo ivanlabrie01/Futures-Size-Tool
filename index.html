@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIZE — Position Sizing &amp; Vol Target</title>
+<meta name="description" content="Risk-based and volatility-target position sizing for gold, crypto, indices and FX. Seeded with real market data, runs entirely in the browser.">
+<style>
+  html, body { margin: 0; background: #161310; }
+  @media (prefers-color-scheme: light) { html, body { background: #f4f0e7; } }
+  :root[data-theme="dark"] { color-scheme: dark; }
+  :root[data-theme="light"] { color-scheme: light; }
+</style>
+<style>
+  :root {
+    --ground: #161310;
+    --panel: #1e1a14;
+    --panel-2: #262019;
+    --line: #362f25;
+    --line-soft: #2a2419;
+    --ink: #ece5d6;
+    --ink-dim: #a89c88;
+    --ink-faint: #776d5c;
+    --brass: #c99a48;
+    --brass-dim: #9c7a3a;
+    --brass-soft: #3a2f1a;
+    --safe: #57a978;
+    --safe-bg: #17281e;
+    --caution: #e0932f;
+    --caution-bg: #2c2110;
+    --danger: #d6533c;
+    --danger-bg: #2e1712;
+    --shadow: 0 1px 0 rgba(255,255,255,.03), 0 8px 30px rgba(0,0,0,.45);
+    --radius: 12px;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #f4f0e7;
+      --panel: #fffdf8;
+      --panel-2: #f9f5ec;
+      --line: #e3dccb;
+      --line-soft: #ece5d5;
+      --ink: #241d12;
+      --ink-dim: #6f6552;
+      --ink-faint: #9a9081;
+      --brass: #a2761f;
+      --brass-dim: #7c5a15;
+      --brass-soft: #f0e6cf;
+      --safe: #3d8a5c;
+      --safe-bg: #e6f1e8;
+      --caution: #b9741a;
+      --caution-bg: #f6ecd7;
+      --danger: #b6412c;
+      --danger-bg: #f6e2dc;
+      --shadow: 0 1px 2px rgba(60,45,15,.06), 0 10px 30px rgba(90,70,25,.08);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #161310; --panel: #1e1a14; --panel-2: #262019; --line: #362f25; --line-soft: #2a2419;
+    --ink: #ece5d6; --ink-dim: #a89c88; --ink-faint: #776d5c; --brass: #c99a48; --brass-dim: #9c7a3a;
+    --brass-soft: #3a2f1a; --safe: #57a978; --safe-bg: #17281e; --caution: #e0932f; --caution-bg: #2c2110;
+    --danger: #d6533c; --danger-bg: #2e1712; --shadow: 0 1px 0 rgba(255,255,255,.03), 0 8px 30px rgba(0,0,0,.45);
+  }
+  :root[data-theme="light"] {
+    --ground: #f4f0e7; --panel: #fffdf8; --panel-2: #f9f5ec; --line: #e3dccb; --line-soft: #ece5d5;
+    --ink: #241d12; --ink-dim: #6f6552; --ink-faint: #9a9081; --brass: #a2761f; --brass-dim: #7c5a15;
+    --brass-soft: #f0e6cf; --safe: #3d8a5c; --safe-bg: #e6f1e8; --caution: #b9741a; --caution-bg: #f6ecd7;
+    --danger: #b6412c; --danger-bg: #f6e2dc; --shadow: 0 1px 2px rgba(60,45,15,.06), 0 10px 30px rgba(90,70,25,.08);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .wrap {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding: 0 20px 72px;
+  }
+  .shell { max-width: 1080px; margin: 0 auto; }
+
+  /* ---- masthead ---- */
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 22px 2px 18px; border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .mark {
+    width: 40px; height: 40px; border-radius: 9px; flex: none;
+    display: grid; place-items: center;
+    background: linear-gradient(150deg, var(--brass) 0%, var(--brass-dim) 100%);
+    color: #1a1509; font-family: var(--mono); font-weight: 700; font-size: 17px;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.35), inset 0 -2px 3px rgba(0,0,0,.25);
+  }
+  .brand h1 { font-size: 19px; margin: 0; letter-spacing: .16em; font-weight: 700; }
+  .brand .sub { font-size: 11.5px; color: var(--ink-dim); letter-spacing: .04em; margin-top: 1px; }
+  .asof {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+    text-align: right; letter-spacing: .02em; line-height: 1.6;
+  }
+  .asof b { color: var(--ink-dim); font-weight: 600; }
+
+  .thesis {
+    margin: 26px 2px 8px; font-size: clamp(21px, 3.4vw, 30px); line-height: 1.22;
+    letter-spacing: -.015em; text-wrap: balance; max-width: 20ch; font-weight: 640;
+  }
+  .thesis em { color: var(--brass); font-style: normal; }
+  .lede { margin: 0 2px 26px; color: var(--ink-dim); max-width: 62ch; font-size: 14.5px; }
+
+  /* ---- panels ---- */
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .eyebrow {
+    font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint);
+    font-weight: 700; display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow .n {
+    font-family: var(--mono); color: var(--brass); border: 1px solid var(--brass-soft);
+    background: var(--brass-soft); border-radius: 5px; padding: 1px 6px; letter-spacing: .05em;
+  }
+
+  /* ---- calculator grid ---- */
+  .calc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .calc { grid-template-columns: 1fr; } }
+
+  .card-pad { padding: 20px; }
+  .card-pad > .eyebrow { margin-bottom: 16px; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field > label {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    font-size: 12px; color: var(--ink-dim); margin-bottom: 6px; font-weight: 550;
+  }
+  .field > label .hint { color: var(--ink-faint); font-weight: 400; font-size: 11px; }
+  .inp, select.inp {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--ink); border-radius: 8px; padding: 9px 11px;
+    font-family: var(--mono); font-size: 15px; letter-spacing: .01em;
+    font-variant-numeric: tabular-nums; appearance: none;
+  }
+  .inp:focus, select.inp:focus, textarea.inp:focus, .seg button:focus-visible {
+    outline: 2px solid var(--brass); outline-offset: 1px;
+  }
+  select.inp {
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-dim) 50%), linear-gradient(135deg, var(--ink-dim) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; cursor: pointer;
+  }
+  .adorn { position: relative; }
+  .adorn .unit {
+    position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); font-size: 12px; color: var(--ink-faint); pointer-events: none;
+  }
+  .adorn .inp { padding-right: 42px; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .seg { display: flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--ink-dim); cursor: pointer;
+    font-family: var(--sans); font-size: 12px; font-weight: 600; padding: 6px 4px; border-radius: 6px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--brass); color: #1a1509; }
+
+  .contract-note { font-size: 11px; color: var(--ink-faint); margin-top: 4px; font-family: var(--mono); }
+
+  details.adv { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; }
+  details.adv > summary {
+    cursor: pointer; font-size: 12px; color: var(--brass); font-weight: 600; list-style: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  details.adv > summary::-webkit-details-marker { display: none; }
+  details.adv > summary::before { content: "+"; font-family: var(--mono); }
+  details.adv[open] > summary::before { content: "–"; }
+  details.adv .adv-body { margin-top: 12px; }
+
+  /* ---- results ---- */
+  .result-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+  .verdict-tag {
+    font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    padding: 4px 9px; border-radius: 999px; text-transform: uppercase; white-space: nowrap;
+  }
+  .v-ok { color: var(--safe); background: var(--safe-bg); }
+  .v-warn { color: var(--caution); background: var(--caution-bg); }
+  .v-bad { color: var(--danger); background: var(--danger-bg); }
+
+  .bignum { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 2px; }
+  .bignum .val { font-family: var(--mono); font-size: 40px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .bignum .u { font-family: var(--mono); font-size: 15px; color: var(--ink-dim); }
+  .bind { font-size: 12.5px; color: var(--ink-dim); margin-bottom: 16px; }
+  .bind b { color: var(--ink); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: 9px; overflow: hidden; }
+  .stat { background: var(--panel); padding: 11px 13px; }
+  .stat .k { font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  .stat .v { font-family: var(--mono); font-size: 18px; font-variant-numeric: tabular-nums; margin-top: 3px; letter-spacing: -.01em; }
+  .stat .v small { font-size: 11px; color: var(--ink-dim); }
+  .stat.hot .v { color: var(--danger); }
+  .stat.warm .v { color: var(--caution); }
+  .stat.cool .v { color: var(--safe); }
+
+  /* ---- gauge ---- */
+  .gauge-wrap { margin: 18px 0 4px; }
+  .gauge-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-faint); margin-bottom: 7px; letter-spacing: .03em; }
+  .gauge-top b { color: var(--ink-dim); font-weight: 600; }
+  .gauge {
+    position: relative; height: 12px; border-radius: 999px; overflow: hidden;
+    background: linear-gradient(90deg, var(--safe) 0%, var(--safe) 16%, #b7a63a 34%, var(--caution) 52%, #cf7233 70%, var(--danger) 90%);
+  }
+  .needle {
+    position: absolute; top: -3px; width: 3px; height: 18px; background: var(--ink);
+    border-radius: 2px; transform: translateX(-50%); box-shadow: 0 0 0 2px var(--panel);
+    transition: left .25s ease;
+  }
+  @media (prefers-reduced-motion: reduce) { .needle { transition: none; } }
+  .ticks { position: relative; height: 14px; margin-top: 2px; }
+  .ticks span { position: absolute; transform: translateX(-50%); font-family: var(--mono); font-size: 9.5px; color: var(--ink-faint); }
+
+  .callout { margin-top: 16px; border-radius: 9px; padding: 12px 14px; font-size: 13px; line-height: 1.5; border: 1px solid transparent; }
+  .callout.bad { background: var(--danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+  .callout.warn { background: var(--caution-bg); border-color: color-mix(in srgb, var(--caution) 30%, transparent); }
+  .callout.ok { background: var(--safe-bg); border-color: color-mix(in srgb, var(--safe) 30%, transparent); }
+  .callout b { color: var(--ink); }
+  .callout .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---- section blocks ---- */
+  section.block { margin-top: 22px; }
+  .block-head { margin: 0 2px 14px; }
+  .block-head h2 { font-size: 17px; margin: 8px 0 3px; letter-spacing: -.01em; }
+  .block-head p { margin: 0; color: var(--ink-dim); font-size: 13.5px; max-width: 66ch; }
+
+  .reality { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 720px) { .reality { grid-template-columns: 1fr; } }
+  .rc { padding: 16px; }
+  .rc .k { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .rc .big { font-family: var(--mono); font-size: 26px; font-weight: 700; margin: 8px 0 4px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .rc .desc { font-size: 12.5px; color: var(--ink-dim); line-height: 1.45; }
+
+  /* held vs safe */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+  .cmp-col { padding: 18px; }
+  .cmp-col.held { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+  .cmp-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cmp-title .t { font-weight: 650; font-size: 14px; }
+  .cmp-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+  .cmp-row:last-child { border-bottom: 0; }
+  .cmp-row .k { color: var(--ink-dim); }
+  .cmp-row .v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .cmp-row .v.hot { color: var(--danger); font-weight: 600; }
+  .cmp-row .v.cool { color: var(--safe); font-weight: 600; }
+
+  /* teaching */
+  .layers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .layers { grid-template-columns: 1fr; } }
+  .layer { padding: 16px; }
+  .layer h3 { font-size: 13.5px; margin: 10px 0 6px; }
+  .layer p { font-size: 12.5px; color: var(--ink-dim); margin: 0; line-height: 1.5; }
+  .layer .tag { font-family: var(--mono); font-size: 10.5px; color: var(--brass); letter-spacing: .08em; text-transform: uppercase; }
+  .layer .frm { font-family: var(--mono); font-size: 11.5px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; margin-top: 10px; overflow-x: auto; }
+
+  .rules { padding: 20px; }
+  .rules ol { margin: 12px 0 0; padding-left: 0; list-style: none; counter-reset: r; }
+  .rules li { counter-increment: r; position: relative; padding: 9px 0 9px 34px; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+  .rules li:last-child { border-bottom: 0; }
+  .rules li::before {
+    content: counter(r); position: absolute; left: 0; top: 9px; width: 22px; height: 22px;
+    display: grid; place-items: center; border-radius: 6px; background: var(--brass-soft);
+    color: var(--brass); font-family: var(--mono); font-size: 12px; font-weight: 700;
+  }
+  .rules li b { color: var(--ink); }
+
+  textarea.inp { min-height: 78px; resize: vertical; line-height: 1.5; font-size: 13px; }
+  .btn {
+    border: 1px solid var(--brass); background: var(--brass); color: #1a1509;
+    font-family: var(--sans); font-weight: 650; font-size: 13px; padding: 9px 16px;
+    border-radius: 8px; cursor: pointer;
+  }
+  .btn.ghost { background: transparent; color: var(--brass); }
+  .btn:active { transform: translateY(1px); }
+  .paste-status { font-size: 12px; color: var(--ink-dim); margin-top: 8px; font-family: var(--mono); min-height: 16px; }
+
+  footer.foot { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12px; line-height: 1.6; }
+  footer.foot b { color: var(--ink-dim); }
+  .disc { margin-top: 8px; font-size: 11.5px; }
+
+  .inline-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="shell">
+
+    <header class="top">
+      <div class="brand">
+        <div class="mark">⚖</div>
+        <div>
+          <h1>SIZE</h1>
+          <div class="sub">POSITION SIZING &amp; VOLATILITY TARGETING</div>
+        </div>
+      </div>
+      <div class="asof">
+        seeded from live data<br>
+        <b id="asofDate">—</b> · Yahoo + Hyperliquid
+      </div>
+    </header>
+
+    <div class="thesis">Leverage isn't the risk. <em>Size × stop</em> is the risk.</div>
+    <p class="lede">Two independent ways to size a trade — capped by the money you'll lose if the stop hits, and by how much the market itself moves. The tool works both and takes the smaller. When the smallest tradeable position is still too big for the account, it says so plainly instead of pretending there's a clever fix.</p>
+
+    <!-- ============ CALCULATOR ============ -->
+    <div class="calc">
+
+      <!-- INPUTS -->
+      <div class="panel card-pad">
+        <div class="eyebrow"><span class="n">01</span> The trade</div>
+
+        <div class="field">
+          <label for="instr">Instrument</label>
+          <select id="instr" class="inp"></select>
+          <div class="contract-note" id="contractNote">—</div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="account">Account equity</label>
+            <div class="adorn"><input id="account" class="inp" type="number" inputmode="decimal" value="10000"><span class="unit">$</span></div>
+          </div>
+          <div class="field">
+            <label for="price">Price</label>
+            <div class="adorn"><input id="price" class="inp" type="number" inputmode="decimal"><span class="unit" id="priceUnit">$</span></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="dailyMove">Typical daily move <span class="hint">1 ATR / 1σ — from the chart</span></label>
+          <div class="adorn"><input id="dailyMove" class="inp" type="number" inputmode="decimal"><span class="unit" id="moveUnit">$</span></div>
+        </div>
+
+        <div class="field">
+          <label for="stopMode">Stop distance</label>
+          <div class="seg" id="stopMode" role="group" aria-label="Stop mode">
+            <button type="button" data-mode="mult" aria-pressed="true">× daily move</button>
+            <button type="button" data-mode="fixed" aria-pressed="false">fixed $</button>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field" id="stopMultField">
+            <label for="stopMult">Stop = <span class="hint">multiples</span></label>
+            <div class="adorn"><input id="stopMult" class="inp" type="number" inputmode="decimal" value="1.5" step="0.1"><span class="unit">×</span></div>
+          </div>
+          <div class="field" id="stopFixedField" style="display:none">
+            <label for="stopFixed">Stop distance</label>
+            <div class="adorn"><input id="stopFixed" class="inp" type="number" inputmode="decimal"><span class="unit" id="stopFixedUnit">$</span></div>
+          </div>
+          <div class="field">
+            <label for="riskPct">Risk per trade <span class="hint">% of equity</span></label>
+            <div class="adorn"><input id="riskPct" class="inp" type="number" inputmode="decimal" value="1" step="0.25"><span class="unit">%</span></div>
+          </div>
+        </div>
+
+        <details class="adv">
+          <summary>Volatility target &amp; contract spec</summary>
+          <div class="adv-body">
+            <div class="row2">
+              <div class="field">
+                <label for="volTarget">Portfolio vol target <span class="hint">annual %</span></label>
+                <div class="adorn"><input id="volTarget" class="inp" type="number" inputmode="decimal" value="20"><span class="unit">%</span></div>
+              </div>
+              <div class="field">
+                <label for="annVol">Instrument vol <span class="hint">annual %</span></label>
+                <div class="adorn"><input id="annVol" class="inp" type="number" inputmode="decimal"><span class="unit">%</span></div>
+              </div>
+            </div>
+            <div class="row2">
+              <div class="field">
+                <label for="mult">$ / unit / $1 move <span class="hint">contract</span></label>
+                <input id="mult" class="inp" type="number" inputmode="decimal">
+              </div>
+              <div class="field">
+                <label for="minSize">Min size <span class="hint">/ step</span></label>
+                <input id="minSize" class="inp" type="number" inputmode="decimal">
+              </div>
+            </div>
+            <div class="field">
+              <label for="brokerLev">Broker max leverage <span class="hint">for stop-out estimate</span></label>
+              <input id="brokerLev" class="inp" type="number" inputmode="decimal">
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="panel card-pad" id="results">
+        <div class="result-head">
+          <div class="eyebrow"><span class="n">02</span> What to trade</div>
+          <span class="verdict-tag" id="verdictTag">—</span>
+        </div>
+
+        <div class="bignum">
+          <span class="val" id="sizeVal">—</span>
+          <span class="u" id="sizeUnit">lots</span>
+        </div>
+        <div class="bind" id="bindLine">—</div>
+
+        <div class="stat-grid">
+          <div class="stat" id="stNotional"><div class="k">Notional</div><div class="v">—</div></div>
+          <div class="stat" id="stLev"><div class="k">Leverage</div><div class="v">—</div></div>
+          <div class="stat" id="stRisk"><div class="k">Risk if stop hits</div><div class="v">—</div></div>
+          <div class="stat" id="stGap"><div class="k">If it gaps 1 day against you</div><div class="v">—</div></div>
+        </div>
+
+        <div class="gauge-wrap">
+          <div class="gauge-top"><span>Leverage</span><b id="gaugeLev">—</b></div>
+          <div class="gauge"><div class="needle" id="needle" style="left:0%"></div></div>
+          <div class="ticks">
+            <span style="left:0%">1×</span><span style="left:20.6%">3×</span><span style="left:37%">10×</span>
+            <span style="left:51.7%">25×</span><span style="left:74.1%">100×</span><span style="left:100%">500×</span>
+          </div>
+        </div>
+
+        <div class="callout" id="callout">—</div>
+      </div>
+    </div>
+
+    <!-- ============ REALITY CHECK ============ -->
+    <section class="block">
+      <div class="block-head">
+        <div class="eyebrow"><span class="n">03</span> Reality check for this account</div>
+        <h2>Is the account even big enough?</h2>
+        <p>The smallest position the broker lets you open is a hard floor. On a small account that floor can already blow past every sane risk limit. These update with your inputs.</p>
+      </div>
+      <div class="reality">
+        <div class="panel rc">
+          <div class="k">Smallest position risks</div>
+          <div class="big" id="rcMinRisk">—</div>
+          <div class="desc" id="rcMinRiskDesc">of your equity if its stop hits — one trade.</div>
+        </div>
+        <div class="panel rc">
+          <div class="k">…and that's</div>
+          <div class="big" id="rcMinLev">—</div>
+          <div class="desc" id="rcMinLevDesc">leverage on the smallest allowed size.</div>
+        </div>
+        <div class="panel rc">
+          <div class="k">Equity you'd need</div>
+          <div class="big" id="rcNeed">—</div>
+          <div class="desc" id="rcNeedDesc">to trade the min size at your risk %.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HELD VS SAFE ============ -->
+    <section class="block">
+      <div class="block-head">
+        <div class="eyebrow"><span class="n">04</span> What you're holding vs. what's safe</div>
+        <h2>Put a live position next to the answer</h2>
+        <p>Enter a position you actually hold. This doesn't change the recommendation above — it just shows the gap between the two, and roughly where the broker auto-closes you.</p>
+      </div>
+      <div class="compare">
+        <div class="panel cmp-col held">
+          <div class="cmp-title">
+            <span class="t">Position held</span>
+            <span class="verdict-tag v-bad" id="heldTag">—</span>
+          </div>
+          <div class="field">
+            <label for="heldSize">Size held <span class="hint">what's actually open now</span></label>
+            <input id="heldSize" class="inp" type="number" inputmode="decimal">
+          </div>
+          <div class="cmp-row"><span class="k">Notional</span><span class="v" id="hNotional">—</span></div>
+          <div class="cmp-row"><span class="k">Leverage</span><span class="v hot" id="hLev">—</span></div>
+          <div class="cmp-row"><span class="k">Loss per $1 move</span><span class="v" id="hPerDollar">—</span></div>
+          <div class="cmp-row"><span class="k">Move to auto stop-out</span><span class="v hot" id="hStopOut">—</span></div>
+        </div>
+        <div class="panel cmp-col">
+          <div class="cmp-title">
+            <span class="t">What the tool says</span>
+            <span class="verdict-tag v-ok" id="safeTag">SIZED</span>
+          </div>
+          <div class="cmp-row"><span class="k">Recommended size</span><span class="v cool" id="sRecSize">—</span></div>
+          <div class="cmp-row"><span class="k">Notional</span><span class="v" id="sNotional">—</span></div>
+          <div class="cmp-row"><span class="k">Leverage</span><span class="v cool" id="sLev">—</span></div>
+          <div class="cmp-row"><span class="k">Loss per $1 move</span><span class="v" id="sPerDollar">—</span></div>
+          <div class="cmp-row"><span class="k">You're oversized by</span><span class="v hot" id="overBy">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TEACHING ============ -->
+    <section class="block">
+      <div class="block-head">
+        <div class="eyebrow"><span class="n">05</span> The three layers</div>
+        <h2>Why two caps beat one</h2>
+        <p>Sizing off the stop alone controls a normal loss. It does nothing about the size you carry across a gap. Layer both.</p>
+      </div>
+      <div class="layers">
+        <div class="panel layer">
+          <span class="tag">Layer 1 · normal loss</span>
+          <h3>Risk to the stop</h3>
+          <p>Fix what you lose when a trade fails at its stop — a small, constant slice of equity. This sets size per trade.</p>
+          <div class="frm">size = (equity × risk%) ÷ (mult × stop$)</div>
+        </div>
+        <div class="panel layer">
+          <span class="tag">Layer 2 · worst case</span>
+          <h3>Max size / leverage cap</h3>
+          <p>Independently cap the notional you carry, so a gap through the stop can't erase the account. This is the layer most blowups skip.</p>
+          <div class="frm">notional ≤ cap × equity</div>
+        </div>
+        <div class="panel layer">
+          <span class="tag">Layer 3 · steady heat</span>
+          <h3>Volatility target</h3>
+          <p>Scale down when the instrument is wild, up when it's calm, so risk per day stays even across markets. Caps leverage automatically.</p>
+          <div class="frm">lev = vol_target ÷ instrument_vol</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ RULES + RECOMPUTE ============ -->
+    <section class="block">
+      <div class="calc">
+        <div class="panel rules">
+          <div class="eyebrow"><span class="n">06</span> The pocket rules</div>
+          <ol>
+            <li><b>Size from the stop first.</b> Risk a fixed % of equity — 0.5–2% — never a fixed lot count.</li>
+            <li><b>Then check leverage.</b> If the position is over your cap, cut it — even if the stop-risk looked fine.</li>
+            <li><b>Wilder market → smaller size.</b> Same dollars of daily heat whether it's gold or FX.</li>
+            <li><b>Adding margin isn't a fix.</b> More equity buys survival room; it doesn't shrink an oversized position — only closing does.</li>
+            <li><b>Changing leverage doesn't change the loss.</b> It changes the stop-out distance. The P&amp;L per point is set by <em>size</em>.</li>
+            <li><b>One entry or five — the cap is on total size</b> in that market, not per ticket.</li>
+          </ol>
+        </div>
+        <div class="panel card-pad">
+          <div class="eyebrow"><span class="n">07</span> Refresh any ticker</div>
+          <p style="font-size:13px;color:var(--ink-dim);margin:14px 0 10px;max-width:52ch">Seeded numbers age. Paste a column of recent daily closes (copy from TradingView / Yahoo — oldest to newest, or the reverse) and it recomputes price, daily move and volatility for the selected instrument.</p>
+          <div class="field">
+            <label for="pasteBox">Daily closes <span class="hint">space / comma / newline separated</span></label>
+            <textarea id="pasteBox" class="inp" placeholder="4012.4&#10;3998.1&#10;4030.7&#10;…"></textarea>
+          </div>
+          <div class="inline-actions">
+            <button class="btn" id="pasteBtn" type="button">Recompute from closes</button>
+            <button class="btn ghost" id="exportBtn" type="button" style="display:none">Export plan (.txt)</button>
+          </div>
+          <div class="paste-status" id="pasteStatus"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <b>Seeded <span id="asofFoot">—</span></b> from Yahoo Finance daily candles (6-month realized vol &amp; ATR-14) and Hyperliquid marks. Contract specs vary by broker — check yours in the advanced panel and override. Crypto sizes in coins; gold/FX in lots; indices in CFD lots. Stop-out estimate assumes a 50% margin-close level.
+      <div class="disc">Educational tool for position sizing, not financial advice or a recommendation to trade any instrument. You are responsible for your own risk.</div>
+    </footer>
+
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+  const SEED = (typeof window !== "undefined" && window.SIZE_SEED) || null;
+  const ASOF = (SEED && SEED.asof) || "19 Jul 2026";
+  document.getElementById("asofDate").textContent = ASOF;
+  document.getElementById("asofFoot").textContent = ASOF;
+
+  // mult = $ P&L per 1.0 unit of size per $1 (or 1 point) of price move
+  // notional = mult * price * size ; risk$ = mult * stop$ * size
+  const INSTRUMENTS = [
+    { key:"XAUUSD", label:"Gold · XAUUSD (CFD, IC Markets)", unit:"lots", mult:100, minSize:0.01, step:0.01,
+      price:4018.8, dailyMove:84.86, annVol:34.0, brokerLev:500, priceUnit:"$", held:0.10, entry:4000,
+      note:"1 lot = 100 oz · $1 move = $100/lot · min 0.01" },
+    { key:"BTC", label:"Bitcoin · BTC perp (Hyperliquid)", unit:"BTC", mult:1, minSize:0.0001, step:0.0001,
+      price:64408, dailyMove:1651.64, annVol:41.3, brokerLev:40, priceUnit:"$", held:0.05, entry:64000,
+      note:"size in coins · $1 move = $1/coin · max ~40× on HL" },
+    { key:"ETH", label:"Ethereum · ETH perp (Hyperliquid)", unit:"ETH", mult:1, minSize:0.001, step:0.001,
+      price:1868.9, dailyMove:64.39, annVol:55.0, brokerLev:25, priceUnit:"$", held:1, entry:1850,
+      note:"size in coins · $1 move = $1/coin · max ~25× on HL" },
+    { key:"SPX", label:"S&P 500 · US500 (CFD)", unit:"lots", mult:1, minSize:0.1, step:0.1,
+      price:7457.69, dailyMove:73.97, annVol:14.0, brokerLev:200, priceUnit:"pt", held:1, entry:7450,
+      note:"1 lot ≈ $1/point (broker-dependent) · check yours" },
+    { key:"NAS", label:"Nasdaq 100 · NAS100 (CFD)", unit:"lots", mult:1, minSize:0.1, step:0.1,
+      price:28592.66, dailyMove:605.01, annVol:21.8, brokerLev:200, priceUnit:"pt", held:0.5, entry:28500,
+      note:"1 lot ≈ $1/point (broker-dependent) · check yours" },
+    { key:"EURUSD", label:"Euro · EURUSD (FX)", unit:"lots", mult:100000, minSize:0.01, step:0.01,
+      price:1.1446, dailyMove:0.0055, annVol:6.4, brokerLev:500, priceUnit:"$", held:0.2, entry:1.145,
+      note:"1 lot = 100k · $10 / pip / lot · min 0.01" },
+    { key:"CUSTOM", label:"Custom instrument…", unit:"units", mult:1, minSize:1, step:1,
+      price:100, dailyMove:2, annVol:20, brokerLev:100, priceUnit:"$", held:0, entry:100,
+      note:"set contract spec in the advanced panel" },
+  ];
+
+  // Merge live-seeded market data (data.js) over the static contract specs.
+  if (SEED && SEED.market) {
+    INSTRUMENTS.forEach(it => {
+      const m = SEED.market[it.key];
+      if (!m) return;
+      if (m.price != null) it.price = m.price;
+      if (m.dailyMove != null) it.dailyMove = m.dailyMove;
+      if (m.annVol != null) it.annVol = m.annVol;
+    });
+  }
+
+  const $ = id => document.getElementById(id);
+  const sel = $("instr");
+  INSTRUMENTS.forEach((it, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = it.label; sel.appendChild(o);
+  });
+
+  let stopMode = "mult";
+  const els = ["account","price","dailyMove","stopMult","stopFixed","riskPct","volTarget","annVol","mult","minSize","brokerLev","heldSize"];
+
+  const money = (n, dp=0) => {
+    if (!isFinite(n)) return "—";
+    const a = Math.abs(n);
+    if (a >= 1e9) return "$" + (n/1e9).toFixed(2) + "B";
+    if (a >= 1e6) return "$" + (n/1e6).toFixed(2) + "M";
+    if (a >= 10000) return "$" + Math.round(n).toLocaleString("en-US");
+    return "$" + n.toLocaleString("en-US", {minimumFractionDigits:dp, maximumFractionDigits:dp});
+  };
+  const sz = n => {
+    if (!isFinite(n)) return "—";
+    if (n === 0) return "0";
+    if (n < 0.001) return n.toPrecision(2);
+    let s = n.toFixed(4).replace(/\.?0+$/,"");
+    return s;
+  };
+  const pct = (n, dp=1) => isFinite(n) ? n.toFixed(dp) + "%" : "—";
+  const lev = n => isFinite(n) ? n.toFixed(n<10?1:0) + "×" : "—";
+
+  function loadInstrument(i) {
+    const it = INSTRUMENTS[i];
+    $("price").value = it.price;
+    $("dailyMove").value = it.dailyMove;
+    $("annVol").value = it.annVol;
+    $("mult").value = it.mult;
+    $("minSize").value = it.minSize;
+    $("brokerLev").value = it.brokerLev;
+    $("heldSize").value = it.held;
+    $("sizeUnit").textContent = it.unit;
+    $("priceUnit").textContent = it.priceUnit;
+    $("moveUnit").textContent = it.priceUnit;
+    $("stopFixedUnit").textContent = it.priceUnit;
+    $("contractNote").textContent = it.note;
+    $("minSize").step = it.step;
+    compute();
+  }
+
+  function num(id){ const v = parseFloat($(id).value); return isFinite(v) ? v : 0; }
+
+  // leverage -> gauge position on log scale 1x..500x
+  function gaugePos(l) {
+    if (l <= 1) return 0;
+    const p = Math.log10(l) / Math.log10(500);
+    return Math.max(0, Math.min(1, p)) * 100;
+  }
+
+  function compute() {
+    const it = INSTRUMENTS[+sel.value];
+    const acct = num("account");
+    const price = num("price");
+    const move = num("dailyMove");
+    const mult = num("mult");
+    const minSize = num("minSize");
+    const step = num("minSize") ? parseFloat($("minSize").step) || it.step : it.step;
+    const riskPct = num("riskPct");
+    const volTarget = num("volTarget");
+    const annVol = num("annVol");
+    const brokerLev = num("brokerLev");
+
+    const stop = stopMode === "mult" ? num("stopMult") * move : num("stopFixed");
+    const stopOk = stop > 0 && mult > 0 && price > 0 && acct > 0;
+
+    // Layer 1: risk to stop
+    const riskDollars = acct * riskPct / 100;
+    const sizeByRisk = stopOk ? riskDollars / (mult * stop) : 0;
+    // Layer 3: vol target
+    const targetLev = annVol > 0 ? volTarget / annVol : 0;
+    const sizeByVol = price > 0 ? targetLev * acct / (mult * price) : 0;
+
+    const rawRec = Math.min(sizeByRisk, sizeByVol);
+    const binding = sizeByRisk <= sizeByVol ? "risk-to-stop" : "vol target";
+    const floored = Math.floor(rawRec / step + 1e-9) * step;
+    const belowMin = floored < minSize - 1e-9;
+    const recSize = belowMin ? minSize : floored;
+
+    // stats at the *displayed* size (min if below, else floored)
+    const notional = mult * price * recSize;
+    const leverage = acct > 0 ? notional / acct : 0;
+    const riskAt = mult * stop * recSize;
+    const riskAtPct = acct > 0 ? riskAt / acct * 100 : 0;
+    const gapLoss = mult * move * recSize;
+    const gapPct = acct > 0 ? gapLoss / acct * 100 : 0;
+
+    // ---- verdict: judge the size we'd actually trade, not just whether it rounded below min ----
+    const SAFE = riskAtPct <= 2.5 && leverage <= 8;
+    const AGGR = !SAFE && riskAtPct <= 8 && leverage <= 25;
+    const idealTxt = `Prudent sizing wants <b class="mono">${sz(rawRec)} ${it.unit}</b>`;
+    let vcls, vtxt, coCls, coTxt;
+    if (SAFE) {
+      vcls = "v-ok"; coCls = "ok";
+      if (belowMin) {
+        vtxt = "MINIMUM";
+        coTxt = `You can't trade below the broker minimum of <b class="mono">${sz(minSize)} ${it.unit}</b>. At that floor you risk <b class="mono">${money(riskAt,2)}</b> (<b class="mono">${pct(riskAtPct)}</b>) at <b class="mono">${lev(leverage)}</b> leverage — a touch above your ideal, but well inside safe limits. Trade the minimum.`;
+      } else {
+        vtxt = "SIZED";
+        coTxt = `Both caps satisfied — binding constraint is your <b>${binding}</b>. A stop-out costs <b class="mono">${money(riskAt,2)}</b> (<b class="mono">${pct(riskAtPct)}</b>); a one-day gap through it, about <b class="mono">${money(gapLoss,2)}</b>.`;
+      }
+    } else if (AGGR) {
+      vcls = "v-warn"; vtxt = "AGGRESSIVE"; coCls = "warn";
+      coTxt = `Tradeable, but hot: <b class="mono">${pct(riskAtPct)}</b> at risk and <b class="mono">${lev(leverage)}</b> leverage${belowMin ? ` at the broker minimum — you can't go smaller` : ``}. Fine as a deliberate high-conviction bet, not a default size.${belowMin ? " " + idealTxt + ", below the minimum." : ""}`;
+    } else {
+      vcls = "v-bad"; coCls = "bad";
+      if (belowMin) {
+        vtxt = "TOO SMALL";
+        coTxt = `The smallest position (<b class="mono">${sz(minSize)} ${it.unit}</b>) still risks <b class="mono">${money(riskAt,2)}</b> — <b class="mono">${pct(riskAtPct)}</b> of equity — at <b class="mono">${lev(leverage)}</b> leverage. ${idealTxt}, below the broker minimum. Honest answer: this account is too small to trade ${it.key} with proper risk control. Grow it, or trade a smaller / cheaper instrument.`;
+      } else {
+        vtxt = "TOO BIG";
+        coTxt = `At <b class="mono">${pct(riskAtPct)}</b> risk and <b class="mono">${lev(leverage)}</b> leverage this is oversized — driven by your <b>${binding}</b> setting. Lower your risk % or vol target until it cools off.`;
+      }
+    }
+    $("verdictTag").className = "verdict-tag " + vcls; $("verdictTag").textContent = vtxt;
+    const co = $("callout"); co.className = "callout " + coCls; co.innerHTML = coTxt;
+
+    $("sizeVal").textContent = sz(recSize);
+    $("bindLine").innerHTML = belowMin
+      ? `Below broker minimum — showing the smallest allowed size.`
+      : `Smaller of the two caps · binding: <b>${binding}</b>${floored < rawRec ? " · rounded down to step" : ""}`;
+
+    setStat("stNotional", money(notional), "");
+    setStat("stLev", lev(leverage), leverage>25?"hot":leverage>10?"warm":"cool");
+    setStat("stRisk", money(riskAt,2), riskAtPct>6?"hot":riskAtPct>2?"warm":"cool", pct(riskAtPct));
+    setStat("stGap", money(gapLoss,2), gapPct>15?"hot":gapPct>6?"warm":"cool", pct(gapPct));
+
+    $("needle").style.left = gaugePos(leverage) + "%";
+    $("gaugeLev").textContent = lev(leverage);
+
+    // ---- reality check ----
+    const minRisk = mult * stop * minSize;
+    const minRiskPct = acct>0 ? minRisk/acct*100 : 0;
+    const minLev = acct>0 ? mult*price*minSize/acct : 0;
+    const needForRisk = riskPct>0 ? minRisk / (riskPct/100) : 0;
+    $("rcMinRisk").textContent = pct(minRiskPct);
+    $("rcMinRisk").style.color = minRiskPct>6?"var(--danger)":minRiskPct>2?"var(--caution)":"var(--safe)";
+    $("rcMinRiskDesc").innerHTML = `of equity (${money(minRisk,2)}) if the min-size stop hits.`;
+    $("rcMinLev").textContent = lev(minLev);
+    $("rcMinLev").style.color = minLev>25?"var(--danger)":minLev>10?"var(--caution)":"var(--safe)";
+    $("rcNeed").textContent = money(needForRisk);
+    $("rcNeedDesc").innerHTML = `to make min size (${sz(minSize)} ${it.unit}) equal ${pct(riskPct,2)} risk.`;
+
+    // ---- held vs safe ----
+    const heldSize = num("heldSize");
+    const heldNotional = mult * price * heldSize;
+    const heldLev = acct>0 ? heldNotional/acct : 0;
+    const heldPerDollar = mult * heldSize;
+    const usedMargin = brokerLev>0 ? heldNotional/brokerLev : 0;
+    const buffer = acct - 0.5 * usedMargin;
+    const moveToSO = heldPerDollar>0 ? buffer/heldPerDollar : 0;
+
+    $("hNotional").textContent = money(heldNotional);
+    $("hLev").textContent = lev(heldLev);
+    $("hPerDollar").textContent = money(heldPerDollar,2);
+    $("hStopOut").textContent = heldSize>0 ? "~" + money(Math.max(0,moveToSO),1) + " " + it.priceUnit : "—";
+    const ht = $("heldTag");
+    ht.className = "verdict-tag " + (heldLev>25?"v-bad":heldLev>10?"v-warn":"v-ok");
+    ht.textContent = heldLev>25?"DANGER":heldLev>10?"HOT":"OK";
+
+    $("sRecSize").textContent = sz(recSize) + " " + it.unit;
+    $("sNotional").textContent = money(notional);
+    $("sLev").textContent = lev(leverage);
+    $("sPerDollar").textContent = money(mult*recSize,2);
+    const overBy = recSize>0 ? heldSize/recSize : 0;
+    $("overBy").textContent = (heldSize>0 && recSize>0) ? (overBy>=1 ? overBy.toFixed(1)+"×" : "under") : "—";
+    $("overBy").className = "v " + (overBy>3?"hot":overBy>1.2?"":"cool");
+
+    lastPlan = { it, acct, price, move, stop, riskPct, recSize, notional, leverage, riskAt, riskAtPct, gapLoss, binding, belowMin, heldSize, heldLev, moveToSO };
+  }
+
+  function setStat(id, val, cls, sub) {
+    const el = $(id);
+    el.className = "stat" + (cls ? " " + cls : "");
+    el.querySelector(".v").innerHTML = val + (sub ? ` <small>${sub}</small>` : "");
+  }
+
+  // stop mode toggle
+  $("stopMode").querySelectorAll("button").forEach(b => {
+    b.addEventListener("click", () => {
+      stopMode = b.dataset.mode;
+      $("stopMode").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x===b));
+      $("stopMultField").style.display = stopMode==="mult" ? "" : "none";
+      $("stopFixedField").style.display = stopMode==="fixed" ? "" : "none";
+      if (stopMode==="fixed" && !$("stopFixed").value) {
+        $("stopFixed").value = (num("stopMult") * num("dailyMove")).toFixed(4).replace(/\.?0+$/,"");
+      }
+      compute();
+    });
+  });
+
+  sel.addEventListener("change", () => loadInstrument(+sel.value));
+  els.forEach(id => $(id).addEventListener("input", compute));
+
+  // ---- paste closes -> recompute ----
+  $("pasteBtn").addEventListener("click", () => {
+    const raw = $("pasteBox").value.trim();
+    const nums = raw.split(/[\s,;]+/).map(parseFloat).filter(x => isFinite(x) && x > 0);
+    const st = $("pasteStatus");
+    if (nums.length < 15) { st.textContent = `Need ~15+ closes to compute vol — got ${nums.length}.`; return; }
+    // orientation-agnostic: use as given; log returns
+    const rets = [];
+    for (let i=1;i<nums.length;i++) rets.push(Math.log(nums[i]/nums[i-1]));
+    const n = rets.length;
+    const mean = rets.reduce((a,b)=>a+b,0)/n;
+    const varr = rets.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(n-1);
+    const dstd = Math.sqrt(varr);
+    const last = nums[nums.length-1];
+    const dailyMove = dstd * last;             // ~1σ daily move in price units
+    const annVol = dstd * Math.sqrt(252) * 100;
+    $("price").value = +last.toFixed(6);
+    $("dailyMove").value = +dailyMove.toFixed(6);
+    $("annVol").value = +annVol.toFixed(1);
+    st.textContent = `Updated from ${nums.length} closes · last ${last} · 1σ day ≈ ${dailyMove.toFixed(2)} · vol ${annVol.toFixed(1)}%.`;
+    compute();
+  });
+
+  // ---- export plan (standard browser download) ----
+  let lastPlan = null;
+  (function initExport(){
+    const btn = $("exportBtn");
+    btn.style.display = "";
+    btn.addEventListener("click", () => {
+      if (!lastPlan) return;
+      const p = lastPlan;
+      const L = [
+        `POSITION SIZING PLAN — ${p.it.label}`,
+        `seeded ${ASOF}`,
+        ``,
+        `Account equity      ${money(p.acct,2)}`,
+        `Price               ${p.price} ${p.it.priceUnit}`,
+        `Typical daily move  ${p.move} ${p.it.priceUnit}`,
+        `Stop distance       ${p.stop.toFixed(4)} ${p.it.priceUnit}`,
+        `Risk per trade      ${p.riskPct}%`,
+        ``,
+        `RECOMMENDED SIZE    ${sz(p.recSize)} ${p.it.unit}${p.belowMin ? "  (below broker minimum — account too small)" : ""}`,
+        `Notional            ${money(p.notional)}`,
+        `Leverage            ${lev(p.leverage)}`,
+        `Risk if stop hits   ${money(p.riskAt,2)}  (${pct(p.riskAtPct)})`,
+        `Binding cap         ${p.binding}`,
+        ``,
+        p.heldSize>0 ? `HELD ${sz(p.heldSize)} ${p.it.unit} → ${lev(p.heldLev)} leverage · ~${money(p.moveToSO,1)} ${p.it.priceUnit} to stop-out` : ``,
+        ``,
+        `Not financial advice.`,
+      ].join("\n");
+      const blob = new Blob([L], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `sizing-plan-${p.it.key}.txt`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $("pasteStatus").textContent = "Plan downloaded.";
+    });
+  })();
+
+  loadInstrument(0);
+</script>
+</body>
+</html>
