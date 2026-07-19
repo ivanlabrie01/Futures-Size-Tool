@@ -4,7 +4,7 @@ name: refresh-seed
 # and can be triggered by hand from the Actions tab.
 on:
   schedule:
-    - cron: "30 22 * * 1-5"   # 22:30 UTC, Mon–Fri
+    - cron: "30 22 * * 0-5"   # 22:30 UTC, Sun–Fri — weekday closes + the Sunday reopen
   workflow_dispatch:
 
 permissions:
