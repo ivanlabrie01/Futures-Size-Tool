@@ -5,7 +5,7 @@ window.SIZE_SEED = {
   source: "Yahoo Finance daily candles + Hyperliquid marks",
   market: {
     XAUUSD: { price: 4018.8, dailyMove: 84.86, annVol: 34.04 },
-    BTC: { price: 64498.0, dailyMove: 1651.64, annVol: 41.33 },
+    BTC: { price: 64508.0, dailyMove: 1651.64, annVol: 41.33 },
     ETH: { price: 1873.0, dailyMove: 64.39, annVol: 54.98 },
     SPX: { price: 7457.69, dailyMove: 73.97, annVol: 14.03 },
     NAS: { price: 28593.0, dailyMove: 605.01, annVol: 21.85 },
