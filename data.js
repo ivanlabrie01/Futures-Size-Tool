@@ -1,14 +1,14 @@
 // Auto-generated market seed. Regenerate with: python tools/refresh_seed.py
 // price = last daily close (crypto = Hyperliquid mark); dailyMove = ATR(14) in price units; annVol = annualized realized vol (%).
 window.SIZE_SEED = {
-  asof: "13 Oct 2026",
+  asof: "14 Oct 2026",
   source: "Yahoo Finance daily candles + Hyperliquid marks",
   market: {
-    XAUUSD: { price: 4202.2, dailyMove: 75.32, annVol: 22.61 },
-    BTC: { price: 82852.0, dailyMove: 2023.29, annVol: 30.46 },
-    ETH: { price: 2489.1, dailyMove: 79.0, annVol: 42.04 },
-    SPX: { price: 7807.24, dailyMove: 63.13, annVol: 11.95 },
-    NAS: { price: 30665.0, dailyMove: 345.77, annVol: 21.11 },
-    EURUSD: { price: 1.1178, dailyMove: 0.0073, annVol: 4.5961 }
+    XAUUSD: { price: 4175.3, dailyMove: 74.39, annVol: 22.61 },
+    BTC: { price: 83271.0, dailyMove: 2033.13, annVol: 30.63 },
+    ETH: { price: 2501.7, dailyMove: 78.74, annVol: 42.22 },
+    SPX: { price: 7805.45, dailyMove: 60.15, annVol: 11.85 },
+    NAS: { price: 30569.0, dailyMove: 339.62, annVol: 20.99 },
+    EURUSD: { price: 1.1207, dailyMove: 0.0068, annVol: 4.4855 }
   }
 };
